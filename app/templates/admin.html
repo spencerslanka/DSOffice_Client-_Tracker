@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block header_title %}📊 Admin Dashboard{% endblock %}
+
+{% block extra_head %}
+<script src="/static/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header-bar">
+  <a href="/admin/logout" class="btn-outline logout-link">🚪 Logout</a>
+</div>
+
+<!-- ===== Admin Tab Bar ===== -->
+<div class="admin-tabs-bar">
+  <button class="admin-tab active" data-tab="tab-registration" id="tabBtnRegistration">
+    <span class="admin-tab-icon">📋</span>
+    <span class="admin-tab-text">Client Registration</span>
+  </button>
+  <button class="admin-tab" data-tab="tab-progress" id="tabBtnProgress">
+    <span class="admin-tab-icon">📊</span>
+    <span class="admin-tab-text">Section Progress</span>
+  </button>
+  <button class="admin-tab" data-tab="tab-feedback" id="tabBtnFeedback">
+    <span class="admin-tab-icon">💬</span>
+    <span class="admin-tab-text">Feedback</span>
+  </button>
+  <div class="admin-tab-indicator" id="tabIndicator"></div>
+</div>
+
+<!-- ===== TAB 1: Client Registration ===== -->
+<div class="admin-tab-panel active" id="tab-registration">
+  <!-- Summary cards -->
+  <div class="stat-grid" id="statCards"></div>
+
+  <!-- Client list -->
+  <div class="panel" style="margin-top:4px;">
+    <div class="admin-filter-row">
+      <div class="admin-filter-item">
+        <label>Filter by section</label>
+        <select id="sectionFilter">
+          <option value="">All sections</option>
+          {% for s in sections %}
+          <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="admin-filter-item">
+        <label class="admin-checkbox-label">
+          <input type="checkbox" id="showCompleted" style="width:auto"> Show completed clients
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="panel table-panel">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Token</th>
+          <th>Client</th>
+          <th>Purpose</th>
+          <th>Status</th>
+          <th>Progress</th>
+          <th>Sections</th>
+          <th>Registered</th>
+        </tr>
+      </thead>
+      <tbody id="list"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== TAB 2: Section Progress ===== -->
+<div class="admin-tab-panel" id="tab-progress">
+  <div class="chart-grid">
+    <div class="panel chart-panel">
+      <h3>Sections — Needed vs Completed</h3>
+      <canvas id="sectionChart" height="220"></canvas>
+    </div>
+    <div class="panel chart-panel">
+      <h3>Overall Status Breakdown</h3>
+      <canvas id="statusChart" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB 3: Feedback ===== -->
+<div class="admin-tab-panel" id="tab-feedback">
+
+  <!-- Top feedback count cards (above dark dashboard) -->
+  <div class="fb-count-grid" id="fbCountCards">
+    <div class="fb-count-card fb-count-total">
+      <div class="fb-count-emoji">📊</div>
+      <div class="fb-count-num" id="fbTotal">0</div>
+      <div class="fb-count-label">Total</div>
+    </div>
+    <div class="fb-count-card fb-count-good">
+      <div class="fb-count-emoji">😊</div>
+      <div class="fb-count-num" id="fbGood">0</div>
+      <div class="fb-count-label">හොඳයි</div>
+    </div>
+    <div class="fb-count-card fb-count-avg">
+      <div class="fb-count-emoji">😐</div>
+      <div class="fb-count-num" id="fbAverage">0</div>
+      <div class="fb-count-label">සාමාන්‍යයි</div>
+    </div>
+    <div class="fb-count-card fb-count-poor">
+      <div class="fb-count-emoji">😞</div>
+      <div class="fb-count-num" id="fbPoor">0</div>
+      <div class="fb-count-label">අසතුටුයි</div>
+    </div>
+  </div>
+
+  <div class="feedback-dark-dashboard">
+    <h3>💬 Customer Success Dashboard</h3>
+    <div class="feedback-dash-grid">
+      <div class="panel fb-overall-new">
+        <h3>⭐ Overall Feedback</h3>
+        <div class="rating-big" id="avgRatingNum">–</div>
+        <div class="rating-stars" id="avgRatingStars"></div>
+        <div class="rating-sub" id="totalFeedbackCount">0 responses</div>
+      </div>
+      <div class="panel">
+        <h3>🍩 Satisfaction Distribution</h3>
+        <div style="position:relative;width:100%;height:200px;">
+          <canvas id="satisfactionChart"></canvas>
+        </div>
+      </div>
+      <div class="panel fb-full-width">
+        <h3>📈 Daily Feedback Count</h3>
+        <div id="dailyChartWrap" style="position:relative;width:100%;height:220px;">
+          <canvas id="dailyFeedbackChart"></canvas>
+        </div>
+      </div>
+      <div class="panel fb-full-width">
+        <h3>📊 Section Feedback Chart</h3>
+        <div style="position:relative;width:100%;height:320px;">
+          <canvas id="sectionFeedbackChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel table-panel" style="max-height:240px; overflow-y:auto; margin-top:16px; background: rgba(0,0,0,0.2);">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Name</th><th>Section</th><th>Reason</th><th>Rating</th></tr></thead>
+        <tbody id="feedbackList"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // ===== Admin Tab Switching =====
+  const adminTabs = document.querySelectorAll('.admin-tab');
+  const adminPanels = document.querySelectorAll('.admin-tab-panel');
+  const tabIndicator = document.getElementById('tabIndicator');
+
+  function positionIndicator(btn) {
+    if (!tabIndicator || !btn) return;
+    tabIndicator.style.width = btn.offsetWidth + 'px';
+    tabIndicator.style.left = btn.offsetLeft + 'px';
+  }
+
+  // Position indicator on first active tab
+  requestAnimationFrame(() => {
+    const activeBtn = document.querySelector('.admin-tab.active');
+    if (activeBtn) positionIndicator(activeBtn);
+  });
+
+  adminTabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      adminTabs.forEach(t => t.classList.remove('active'));
+      adminPanels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const panelId = btn.getAttribute('data-tab');
+      document.getElementById(panelId).classList.add('active');
+      positionIndicator(btn);
+      // Re-draw feedback charts now that the tab is visible
+      if (panelId === 'tab-feedback') {
+        setTimeout(loadFeedback, 100);
+      }
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+    });
+  });
+
+  // Reposition indicator on window resize
+  window.addEventListener('resize', () => {
+    const activeBtn = document.querySelector('.admin-tab.active');
+    if (activeBtn) positionIndicator(activeBtn);
+  });
+
+  const STATUS_COLORS = { waiting: '#d9dfde', in_progress: '#e9c46a', completed: '#2a9d8f' };
+  let sectionChart, statusChart;
+
+  function statusLabel(s) {
+    return {pending: 'Pending', in_progress: 'In Progress', done: 'Done',
+            waiting: 'Waiting', completed: 'Completed'}[s] || s;
+  }
+
+  async function loadStats() {
+    const res = await fetch('/api/stats');
+    const s = await res.json();
+
+    document.getElementById('statCards').innerHTML = `
+      <div class="stat-card stat-teal"><div class="stat-num">${s.total}</div><div class="stat-label">Total Clients</div></div>
+      <div class="stat-card stat-amber"><div class="stat-num">${s.waiting}</div><div class="stat-label">Waiting</div></div>
+      <div class="stat-card stat-blue"><div class="stat-num">${s.in_progress}</div><div class="stat-label">In Progress</div></div>
+      <div class="stat-card stat-green"><div class="stat-num">${s.completed}</div><div class="stat-label">Completed</div></div>
+      <div class="stat-card stat-purple"><div class="stat-num">${s.today_count}</div><div class="stat-label">Registered Today</div></div>
+      <div class="stat-card stat-pink"><div class="stat-num">${s.today_completed}</div><div class="stat-label">Completed Today</div></div>
+    `;
+
+    const sectionCtx = document.getElementById('sectionChart');
+    const needed = s.sections.map(sec => s.section_needed[sec]);
+    const done = s.sections.map(sec => s.section_done[sec]);
+    const inprog = s.sections.map(sec => s.section_in_progress[sec]);
+    
+    try {
+      if (sectionChart) sectionChart.destroy();
+      sectionChart = new Chart(sectionCtx, {
+        type: 'bar',
+        data: {
+          labels: s.sections,
+          datasets: [
+            { label: 'Needed', data: needed, backgroundColor: '#cfd8d6' },
+            { label: 'In Progress', data: inprog, backgroundColor: '#e9c46a' },
+            { label: 'Done', data: done, backgroundColor: '#2a9d8f' },
+          ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      });
+    } catch (e) { console.warn("Chart.js failed to load for sectionChart", e); }
+
+    const statusCtx = document.getElementById('statusChart');
+    try {
+      if (statusChart) statusChart.destroy();
+      statusChart = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Waiting', 'In Progress', 'Completed'],
+          datasets: [{
+            data: [s.waiting, s.in_progress, s.completed],
+            backgroundColor: [STATUS_COLORS.waiting, STATUS_COLORS.in_progress, STATUS_COLORS.completed],
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+    } catch (e) { console.warn("Chart.js failed to load for statusChart", e); }
+  }
+
+  const listEl = document.getElementById('list');
+  const sectionFilter = document.getElementById('sectionFilter');
+  const showCompleted = document.getElementById('showCompleted');
+
+  function statusBadgeClass(status) {
+    return { waiting: 'badge-waiting', in_progress: 'badge-progress', completed: 'badge-done' }[status] || '';
+  }
+  function statusBadgeText(status) {
+    return { waiting: 'Not Started', in_progress: 'In Progress', completed: 'Done' }[status] || status;
+  }
+
+  async function loadList() {
+    const section = sectionFilter.value;
+    const active = !showCompleted.checked;
+    let url = `/api/clients?active=${active}`;
+    if (section) url += `&section=${encodeURIComponent(section)}`;
+    const res = await fetch(url);
+    const clients = await res.json();
+    if (clients.length === 0) {
+      listEl.innerHTML = '<tr><td colspan="7" class="empty-state">No clients found.</td></tr>';
+      return;
+    }
+    listEl.innerHTML = clients.map((c, idx) => {
+      const tags = c.sections.map(s => `<span class="tag ${c.section_status[s]}">${s}: ${statusLabel(c.section_status[s])}</span>`).join('');
+      const created = new Date(c.created_at).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+      const historyLines = (c.history || []).map(h => {
+        const t = new Date(h.at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        return `<div class="log-line"><span class="log-time">${t}</span> ${h.note}</div>`;
+      }).join('');
+      const rowId = `hist-${c.id}`;
+      return `
+      <tr class="data-row" onclick="toggleHistory('${rowId}')">
+        <td class="cell-token">${c.token}</td>
+        <td>${c.name}<div class="cell-sub">${c.phone || ''}${c.nic ? ' · NIC: ' + c.nic : ''}</div></td>
+        <td class="cell-purpose">${c.purpose}</td>
+        <td><span class="badge ${statusBadgeClass(c.overall_status)}">${statusBadgeText(c.overall_status)}</span></td>
+        <td class="cell-progress">
+          <div class="progress-track"><div class="progress-fill" style="width:${c.progress}%"></div></div>
+          <span class="progress-pct">${c.progress}%</span>
+        </td>
+        <td>${tags}</td>
+        <td class="cell-sub">${created}</td>
+      </tr>
+      <tr class="history-row" id="${rowId}" style="display:none">
+        <td colspan="7"><div class="history-log">${historyLines}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function toggleHistory(rowId) {
+    const el = document.getElementById(rowId);
+    el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+  }
+
+  let dailyFeedbackChart, sectionFeedbackChart, satisfactionChart;
+  async function loadFeedback() {
+    const [statsRes, listRes] = await Promise.all([
+      fetch('/api/feedback-stats'), fetch('/api/feedback')
+    ]);
+    const stats = await statsRes.json();
+    const items = await listRes.json();
+
+    // Check for auth error
+    if (stats.error || items.error) {
+      console.warn('Feedback API error:', stats.error || items.error);
+      return;
+    }
+
+    // --- Top feedback count cards (update FIRST, before charts) ---
+    document.getElementById('fbTotal').textContent = stats.total;
+    document.getElementById('fbGood').textContent = stats.good;
+    document.getElementById('fbAverage').textContent = stats.average;
+    document.getElementById('fbPoor').textContent = stats.poor;
+
+    // --- Overall feedback (avg rating + stars) ---
+    document.getElementById('avgRatingNum').textContent = stats.total ? `${stats.avg_rating} / 5` : '– / 5';
+    document.getElementById('totalFeedbackCount').textContent = `${stats.total} response${stats.total === 1 ? '' : 's'}`;
+    const filled = Math.round(stats.avg_rating);
+    let starsHtml = '';
+    for (let i = 1; i <= 5; i++) starsHtml += i <= filled ? '★' : '☆';
+    document.getElementById('avgRatingStars').textContent = starsHtml;
+
+    // --- Raw feedback table ---
+    const ratingIcon = { good: '😊 Good', average: '😐 Average', poor: '☹️ Poor' };
+    const fbListEl = document.getElementById('feedbackList');
+    if (items.length === 0) {
+      fbListEl.innerHTML = '<tr><td colspan="5" class="empty-state">No feedback submitted yet.</td></tr>';
+    } else {
+      fbListEl.innerHTML = items.slice(0, 20).map(f => {
+        const d = new Date(f.created_at).toLocaleDateString([], {month:'short', day:'numeric'});
+        return `<tr>
+          <td class="cell-sub">${d}</td>
+          <td>${f.name || '—'}</td>
+          <td>${f.section}</td>
+          <td class="cell-purpose">${f.reason}</td>
+          <td>${ratingIcon[f.rating] || f.rating}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // --- Daily feedback count chart ---
+
+    try {
+      const dailyLabels = stats.daily_counts.map(d => {
+        const dt = new Date(d.date + 'T00:00:00');
+        return dt.toLocaleDateString([], {month: 'short', day: 'numeric'});
+      });
+      const dailyData = stats.daily_counts.map(d => d.count);
+      const maxVal = Math.max(...dailyData, 1);
+
+      if (dailyFeedbackChart) dailyFeedbackChart.destroy();
+      dailyFeedbackChart = new Chart(document.getElementById('dailyFeedbackChart'), {
+        type: 'bar',
+        data: {
+          labels: dailyLabels,
+          datasets: [{
+            label: 'Feedback',
+            data: dailyData,
+            backgroundColor: '#e8a838',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, suggestedMax: maxVal + 1, ticks: { precision: 0, color: '#8890a8' }, grid: { color: 'rgba(255,255,255,0.07)' } },
+            x: { ticks: { color: '#8890a8' }, grid: { display: false } }
+          }
+        }
+      });
+    } catch (e) { 
+      document.getElementById('dailyChartWrap').innerHTML = `<div style="color:red; font-size:12px; overflow:auto; height:100%; background:white; padding:10px; border-radius:4px;">${e.toString()}<br/>${e.stack}</div>`;
+      console.error("Chart.js failed for dailyFeedbackChart", e); 
+    }
+
+    // --- Satisfaction Distribution (Doughnut Chart) ---
+    try {
+      if (satisfactionChart) satisfactionChart.destroy();
+      satisfactionChart = new Chart(document.getElementById('satisfactionChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Good', 'Average', 'Poor'],
+          datasets: [{
+            data: [stats.good, stats.average, stats.poor],
+            backgroundColor: ['#2ee59d', '#fca311', '#e63946'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: { 
+            legend: { position: 'bottom', labels: { color: '#e0e6ed' } }
+          }
+        }
+      });
+    } catch (e) { 
+      document.getElementById('satisfactionChart').parentElement.innerHTML = `<div style="color:red; font-size:12px; overflow:auto; height:100%; background:white; padding:10px; border-radius:4px;">${e.toString()}<br/>${e.stack}</div>`;
+      console.error("Chart.js failed for satisfactionChart", e); 
+    }
+
+    // --- Section Feedback Chart ---
+    try {
+      const sectionNames = Object.keys(stats.by_section);
+      const goodData = sectionNames.map(s => stats.by_section[s].good);
+      const avgData = sectionNames.map(s => stats.by_section[s].average);
+      const poorData = sectionNames.map(s => stats.by_section[s].poor);
+
+      if (sectionFeedbackChart) sectionFeedbackChart.destroy();
+      sectionFeedbackChart = new Chart(document.getElementById('sectionFeedbackChart'), {
+        type: 'bar',
+        data: {
+          labels: sectionNames,
+          datasets: [
+            { label: 'Good', data: goodData, backgroundColor: '#2ee59d' },
+            { label: 'Average', data: avgData, backgroundColor: '#fca311' },
+            { label: 'Poor', data: poorData, backgroundColor: '#e63946' },
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { 
+            legend: { position: 'bottom', labels: { color: '#e0e6ed' } }
+          },
+          scales: {
+            x: { stacked: true, ticks: { precision: 0, color: '#a0aabf' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { stacked: true, ticks: { color: '#a0aabf' }, grid: { display: false } },
+          }
+        }
+      });
+    } catch (e) { 
+      document.getElementById('sectionFeedbackChart').parentElement.innerHTML = `<div style="color:red; font-size:12px; overflow:auto; height:100%; background:white; padding:10px; border-radius:4px;">${e.toString()}<br/>${e.stack}</div>`;
+      console.error("Chart.js failed for sectionFeedbackChart", e); 
+    }
+  }
+
+  sectionFilter.addEventListener('change', loadList);
+  showCompleted.addEventListener('change', loadList);
+
+  function loadAdminAll() { loadStats(); loadList(); loadFeedback(); }
+  loadAdminAll();
+  setInterval(loadAdminAll, 8000);
+</script>
+{% endblock %}

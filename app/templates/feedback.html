@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}සේවා ප්‍රතිචාර{% endblock %}
+{% block header_title %}💬 සේවා ප්‍රතිචාර පත්‍රිකාව{% endblock %}
+
+{% block content %}
+{% if submitted %}
+<div class="token-banner" style="background: linear-gradient(135deg, #2a9d8f, #1f7a4f);">
+  ඔබගේ ප්‍රතිචාරය සාර්ථකව ලැබුණි. ස්තුතියි!
+  <div style="font-size:0.9rem; font-weight:400; margin-top:8px; opacity:0.9;">Thank you — your feedback has been recorded.</div>
+</div>
+<a href="/feedback" class="btn" style="text-decoration:none; display:inline-block;">➕ තවත් ප්‍රතිචාරයක්</a>
+{% else %}
+<form class="card reg-form" method="post" action="/feedback">
+
+  <label>දිනය (Date)</label>
+  <input type="text" id="autoDate" readonly>
+
+  <label>නම <span class="cell-sub">(සම්පූර්ණ කිරීම අත්‍යවශ්‍ය නොවේ / not essential)</span></label>
+  <input type="text" name="name" placeholder="ඔබගේ නම (optional)">
+
+  <label>යොමු වූ අංශය (Section referred to) *</label>
+  <select name="section" required>
+    <option value="">-- තෝරන්න / Select --</option>
+    {% for s in sections %}
+    <option value="{{ s }}">{{ s }}</option>
+    {% endfor %}
+  </select>
+
+  <label>පැමිණි කාරණය කෙටියෙන් (Reason for visit, briefly) *</label>
+  <textarea name="reason" required placeholder="උදා: ඉඩම් ඔප්පු මාරු කිරීම"></textarea>
+
+  <label>සේවාව සම්බන්ධව ඔබගේ ප්‍රතිචාරය (Your feedback about the service) *</label>
+  <div class="rating-row">
+    <label class="rating-option rating-good">
+      <input type="radio" name="rating" value="good" required>
+      <span class="rating-face">😊</span>
+      <span class="rating-text">හොඳයි</span>
+    </label>
+    <label class="rating-option rating-average">
+      <input type="radio" name="rating" value="average">
+      <span class="rating-face">😐</span>
+      <span class="rating-text">සාමාන්‍යයයි</span>
+    </label>
+    <label class="rating-option rating-poor">
+      <input type="radio" name="rating" value="poor">
+      <span class="rating-face">☹️</span>
+      <span class="rating-text">අසතුටුයි</span>
+    </label>
+  </div>
+
+  <button type="submit" class="btn-checkin">✅ ඉදිරිපත් කරන්න / Submit</button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const dateEl = document.getElementById('autoDate');
+  if (dateEl) {
+    dateEl.value = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
+</script>
+{% endblock %}

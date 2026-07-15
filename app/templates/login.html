@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — DS Office</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <div class="login-icon">🔒</div>
+    <h1>Admin Login</h1>
+    <p class="login-sub">Divisional Secretariat — Client Tracker</p>
+
+    {% if error %}
+    <div class="login-error">Invalid username or password. Please try again.</div>
+    {% endif %}
+
+    <form method="post" action="/admin/login">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label>Username</label>
+      <input type="text" name="username" required autofocus>
+      <label>Password</label>
+      <input type="password" name="password" required>
+      <button type="submit">Log In</button>
+    </form>
+
+    <a href="/" class="login-back">← Back to Home</a>
+  </div>
+</body>
+</html>

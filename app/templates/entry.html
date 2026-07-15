@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Front Desk Entry{% endblock %}
+{% block header_title %}🖊️ Front Desk — New Client{% endblock %}
+
+{% block content %}
+{% if token %}
+<div class="token-banner">
+  Client registered — give this token to {{ client_name }}
+  <span class="big">{{ token }}</span>
+</div>
+{% endif %}
+
+<form class="card reg-form" method="post" action="/entry">
+  <div class="reg-grid">
+
+    <!-- Left column -->
+    <div class="reg-col">
+      <div class="photo-box">
+        <div class="photo-placeholder">🧑</div>
+        <span>Client Photo (optional)</span>
+      </div>
+
+      <label>NIC / Passport No.</label>
+      <input type="text" name="nic" placeholder="e.g. 199012345678">
+
+      <label>Client Name *</label>
+      <input type="text" name="name" required>
+
+      <div class="two-up">
+        <div>
+          <label>Gender</label>
+          <select name="gender">
+            <option value="">Select</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Contact Number</label>
+          <input type="tel" name="phone">
+        </div>
+      </div>
+
+      <label>Address</label>
+      <textarea name="address" placeholder="Street / village, town, district"></textarea>
+    </div>
+
+    <!-- Right column -->
+    <div class="reg-col">
+      <label>Purpose of Visit *</label>
+      <textarea name="purpose" required placeholder="e.g. Land deed transfer, income certificate..."></textarea>
+
+      <label>Sections Needed *</label>
+      <div class="checkbox-grid">
+        {% for s in sections %}
+        <label><input type="checkbox" name="sections" value="{{ s }}"> {{ s }}</label>
+        {% endfor %}
+      </div>
+
+      <label>Remarks (optional)</label>
+      <textarea name="remarks" placeholder="Any additional notes for the section officer"></textarea>
+
+      <button type="submit" class="btn-checkin">✅ Check In &amp; Generate Token</button>
+    </div>
+
+  </div>
+</form>
+{% endblock %}

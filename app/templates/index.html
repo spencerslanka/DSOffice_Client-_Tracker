@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}DS Office — Home{% endblock %}
+{% block header_title %}🏛️ Divisional Secretariat — Client Tracker{% endblock %}
+
+{% block content %}
+<p style="color:var(--muted)">Choose which screen to open on this device.</p>
+<div class="home-grid">
+  <a class="home-card" href="/entry">
+    <h2>🖊️ Front Desk Entry</h2>
+    <p>Receptionist manually registers a new client</p>
+  </a>
+  <a class="home-card" href="/qr">
+    <h2>📱 QR Self Check-In</h2>
+    <p>Display this for clients to scan &amp; register themselves</p>
+  </a>
+  <a class="home-card" href="/section">
+    <h2>🗂️ Section Officer</h2>
+    <p>View your section's queue and update progress</p>
+  </a>
+  <a class="home-card" href="/display">
+    <h2>📺 Public Display</h2>
+    <p>Waiting-area screen showing token &amp; progress</p>
+  </a>
+  <a class="home-card" href="/admin">
+    <h2>📊 Admin Dashboard</h2>
+    <p>Full details, charts &amp; monitoring for ADS / Admin</p>
+  </a>
+  <a class="home-card" href="/feedback">
+    <h2>💬 Client Feedback</h2>
+    <p>Feedback form for clients after service</p>
+  </a>
+</div>
+{% endblock %}

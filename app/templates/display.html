@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Client Status Display{% endblock %}
+{% block header_title %}📺 Client Status — Waiting Area{% endblock %}
+
+{% block content %}
+<div class="display-wrap">
+  <div class="display-grid" id="display-grid"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const grid = document.getElementById('display-grid');
+
+  function currentSections(c) {
+    return c.sections
+      .filter(s => c.section_status[s] !== 'done')
+      .map(s => `<span class="tag ${c.section_status[s]}">${s}</span>`).join(' ');
+  }
+
+  async function loadDisplay() {
+    const res = await fetch('/api/clients?active=true');
+    const clients = await res.json();
+    if (clients.length === 0) {
+      grid.innerHTML = '<p class="empty-state" style="color:white;grid-column:1/-1;">No clients waiting right now.</p>';
+      return;
+    }
+    grid.innerHTML = clients.map(c => `
+      <div class="display-card">
+        <div class="row-top">
+          <span class="token">${c.token}</span>
+          <span class="name">${c.name}</span>
+        </div>
+        <div class="purpose">${c.purpose}</div>
+        <div class="progress-track"><div class="progress-fill" style="width:${c.progress}%"></div></div>
+        <div style="text-align:right;font-weight:600;color:var(--muted)">${c.progress}% complete</div>
+        <div class="section-tags">${currentSections(c)}</div>
+      </div>
+    `).join('');
+  }
+
+  loadDisplay();
+  setInterval(loadDisplay, 5000);
+</script>
+{% endblock %}

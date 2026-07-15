@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}DS Office Tracker{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">🏛️</div>
+        <div class="brand-text">DS Office<span>Client Tracker</span></div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/entry" class="nav-btn nav-green {% if active=='entry' %}active{% endif %}">🖊️ <span>Front Desk</span></a>
+        <a href="/qr" class="nav-btn nav-pink {% if active=='qr' or active=='register' %}active{% endif %}">📱 <span>QR Check-In</span></a>
+        <a href="/section" class="nav-btn nav-orange {% if active=='section' %}active{% endif %}">🗂️ <span>Section Officer</span></a>
+        <a href="/display" class="nav-btn nav-blue {% if active=='display' %}active{% endif %}">📺 <span>Public Display</span></a>
+        <a href="/admin" class="nav-btn nav-purple {% if active=='admin' %}active{% endif %}">📊 <span>Admin Dashboard</span></a>
+        <a href="/feedback" class="nav-btn nav-teal {% if active=='feedback' %}active{% endif %}">💬 <span>Feedback</span></a>
+        <a href="/qr-feedback" class="nav-btn nav-teal {% if active=='qr_feedback' %}active{% endif %}">🤳 <span>Feedback QR</span></a>
+        <a href="/" class="nav-btn nav-gray {% if active=='home' %}active{% endif %}">🏠 <span>Home</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar-live">
+        <div class="topbar-title">{% block header_title %}DS Office{% endblock %}</div>
+        <div class="live-counters" id="liveCounters">
+          <div class="counter counter-green"><span class="counter-num">–</span><span class="counter-label">Waiting</span></div>
+          <div class="counter counter-orange"><span class="counter-num">–</span><span class="counter-label">In Progress</span></div>
+          <div class="counter counter-blue"><span class="counter-num">–</span><span class="counter-label">Completed</span></div>
+        </div>
+        <div class="live-clock" id="liveClock"></div>
+      </header>
+
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script>
+    function updateClock() {
+      const el = document.getElementById('liveClock');
+      if (!el) return;
+      const now = new Date();
+      el.innerHTML = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}) +
+        '<span class="clock-date">' + now.toLocaleDateString([], {weekday:'long', day:'numeric', month:'short'}) + '</span>';
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    async function loadLiveCounters() {
+      try {
+        const res = await fetch('/api/stats');
+        const s = await res.json();
+        const el = document.getElementById('liveCounters');
+        if (!el) return;
+        el.innerHTML = `
+          <div class="counter counter-green"><span class="counter-num">${s.waiting}</span><span class="counter-label">Waiting</span></div>
+          <div class="counter counter-orange"><span class="counter-num">${s.in_progress}</span><span class="counter-label">In Progress</span></div>
+          <div class="counter counter-blue"><span class="counter-num">${s.completed}</span><span class="counter-label">Completed</span></div>
+        `;
+      } catch (e) { /* ignore transient errors */ }
+    }
+    loadLiveCounters();
+    setInterval(loadLiveCounters, 8000);
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

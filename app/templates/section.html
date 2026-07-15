@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Section Officer{% endblock %}
+{% block header_title %}🗂️ Section Officer{% endblock %}
+
+{% block extra_head %}
+<script src="/static/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="tabs-bar">
+  <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">📊 Overview</button>
+  {% for s in sections %}
+  <button class="tab-btn" data-tab="{{ loop.index0 }}" onclick="switchTab('{{ loop.index0 }}')">
+    {{ s }}<span class="tab-badge" id="badge-{{ loop.index0 }}" style="display:none">0</span>
+  </button>
+  {% endfor %}
+</div>
+
+<div id="tab-overview" class="tab-panel active">
+  <div class="stat-grid" id="statCards"></div>
+  <div class="chart-grid">
+    <div class="panel chart-panel">
+      <h3>Sections — Needed vs Completed</h3>
+      <canvas id="sectionChart" height="200"></canvas>
+    </div>
+    <div class="panel chart-panel">
+      <h3>Overall Status Breakdown</h3>
+      <canvas id="statusChart" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+{% for s in sections %}
+<div id="tab-{{ loop.index0 }}" class="tab-panel" data-section="{{ s }}">
+  <div class="section-cards" id="cards-{{ loop.index0 }}"></div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const SECTIONS = {{ sections | tojson }};
+  const STATUS_COLORS = { waiting: '#d9dfde', in_progress: '#e9c46a', completed: '#2a9d8f' };
+  let sectionChart, statusChart;
+  let activeTab = 'overview';
+  let allClients = [];
+  const seenPendingIds = new Set();
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+    render();
+  }
+
+  function stepStatusClass(st) { return st === 'done' ? 'done' : st === 'in_progress' ? 'current' : 'pending'; }
+
+  function renderStepper(c) {
+    const steps = SECTIONS.filter(s => c.sections.includes(s));
+    return steps.map((s, i) => {
+      const st = c.section_status[s];
+      const cls = stepStatusClass(st);
+      const dot = st === 'done' ? '✓' : (i + 1);
+      let html = `<div class="step-item" title="${s}: ${st}">
+                     <div class="step-dot step-${cls}">${dot}</div>
+                     <div class="step-name">${s}</div>
+                   </div>`;
+      if (i < steps.length - 1) html += `<div class="step-connector step-${cls === 'pending' ? 'pending' : 'active'}"></div>`;
+      return html;
+    }).join('');
+  }
+
+  function isNew(c, section) {
+    const ageMin = (Date.now() - new Date(c.created_at).getTime()) / 60000;
+    return ageMin < 15 && c.section_status[section] === 'pending';
+  }
+
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      gain.gain.value = 0.08;
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.18);
+    } catch (e) { /* audio not available */ }
+  }
+
+  function statusLabel(s) {
+    return {pending: 'Pending', in_progress: 'In Progress', done: 'Done'}[s] || s;
+  }
+
+  function renderSectionCards(idxStr) {
+    const section = SECTIONS[parseInt(idxStr, 10)];
+    const el = document.getElementById('cards-' + idxStr);
+    const clients = allClients.filter(c => c.sections.includes(section));
+    if (clients.length === 0) {
+      el.innerHTML = '<p class="empty-state">No active clients need this section right now.</p>';
+      return;
+    }
+    // New / pending-first ordering so unhandled clients surface immediately
+    clients.sort((a, b) => {
+      const pa = a.section_status[section] === 'pending' ? 0 : a.section_status[section] === 'in_progress' ? 1 : 2;
+      const pb = b.section_status[section] === 'pending' ? 0 : b.section_status[section] === 'in_progress' ? 1 : 2;
+      return pa - pb;
+    });
+    el.innerHTML = clients.map(c => {
+      const myStatus = c.section_status[section];
+      const newTag = isNew(c, section) ? '<span class="new-badge">NEW</span>' : '';
+      let actionBtns = '';
+      if (myStatus === 'pending') {
+        actionBtns = `<button class="btn-sm" onclick="setStatus(${c.id}, '${section}', 'in_progress')">Start</button>`;
+      } else if (myStatus === 'in_progress') {
+        actionBtns = `<button class="btn-sm btn-done" onclick="setStatus(${c.id}, '${section}', 'done')">Mark Done</button>
+                      <button class="btn-sm btn-outline" onclick="setStatus(${c.id}, '${section}', 'pending')">Undo</button>`;
+      } else {
+        actionBtns = `<button class="btn-sm btn-outline" onclick="setStatus(${c.id}, '${section}', 'in_progress')">Reopen</button>`;
+      }
+      const remarks = c.remarks ? `<div class="card-remarks">📝 ${c.remarks}</div>` : '';
+      return `
+      <div class="client-card section-client-card">
+        <div class="row-top">
+          <span class="token">${c.token}</span>
+          <span class="name">${c.name}</span>
+          ${newTag}
+        </div>
+        <div class="purpose">${c.purpose}</div>
+        ${remarks}
+        <div class="stepper">${renderStepper(c)}</div>
+        <div class="actions">${actionBtns}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function updateBadges() {
+    let anyNew = false;
+    SECTIONS.forEach((s, idx) => {
+      const pendingIds = allClients.filter(c => c.sections.includes(s) && c.section_status[s] === 'pending').map(c => c.id);
+      const badge = document.getElementById('badge-' + idx);
+      if (pendingIds.length > 0) {
+        badge.style.display = 'inline-block';
+        badge.textContent = pendingIds.length;
+      } else {
+        badge.style.display = 'none';
+      }
+      pendingIds.forEach(id => {
+        const key = idx + ':' + id;
+        if (!seenPendingIds.has(key)) { seenPendingIds.add(key); anyNew = true; }
+      });
+    });
+    if (anyNew && seenPendingIds.size > 0) beep();
+  }
+
+  async function loadStatsAndCharts() {
+    const res = await fetch('/api/stats');
+    const s = await res.json();
+
+    document.getElementById('statCards').innerHTML = `
+      <div class="stat-card stat-teal"><div class="stat-num">${s.total}</div><div class="stat-label">Total Clients</div></div>
+      <div class="stat-card stat-amber"><div class="stat-num">${s.waiting}</div><div class="stat-label">Waiting</div></div>
+      <div class="stat-card stat-blue"><div class="stat-num">${s.in_progress}</div><div class="stat-label">In Progress</div></div>
+      <div class="stat-card stat-green"><div class="stat-num">${s.completed}</div><div class="stat-label">Completed</div></div>
+      <div class="stat-card stat-purple"><div class="stat-num">${s.today_count}</div><div class="stat-label">Registered Today</div></div>
+      <div class="stat-card stat-pink"><div class="stat-num">${s.today_completed}</div><div class="stat-label">Completed Today</div></div>
+    `;
+
+    const needed = s.sections.map(sec => s.section_needed[sec]);
+    const done = s.sections.map(sec => s.section_done[sec]);
+    const inprog = s.sections.map(sec => s.section_in_progress[sec]);
+    try {
+      if (sectionChart) sectionChart.destroy();
+      sectionChart = new Chart(document.getElementById('sectionChart'), {
+        type: 'bar',
+        data: { labels: s.sections, datasets: [
+          { label: 'Needed', data: needed, backgroundColor: '#cfd8d6' },
+          { label: 'In Progress', data: inprog, backgroundColor: '#e9c46a' },
+          { label: 'Done', data: done, backgroundColor: '#2a9d8f' },
+        ]},
+        options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      });
+    } catch(e) { console.warn("Chart.js failed to load for sectionChart", e); }
+
+    try {
+      if (statusChart) statusChart.destroy();
+      statusChart = new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: { labels: ['Waiting', 'In Progress', 'Completed'], datasets: [{
+          data: [s.waiting, s.in_progress, s.completed],
+          backgroundColor: [STATUS_COLORS.waiting, STATUS_COLORS.in_progress, STATUS_COLORS.completed],
+        }]},
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+    } catch(e) { console.warn("Chart.js failed to load for statusChart", e); }
+  }
+
+  function render() {
+    if (activeTab === 'overview') {
+      loadStatsAndCharts();
+    } else {
+      renderSectionCards(activeTab);
+    }
+  }
+
+  async function pollAll() {
+    const res = await fetch('/api/clients?active=true');
+    allClients = await res.json();
+    updateBadges();
+    render();
+  }
+
+  async function setStatus(id, section, status) {
+    const form = new URLSearchParams();
+    form.append('status', status);
+    await fetch(`/api/clients/${id}/section/${encodeURIComponent(section)}`, { method: 'POST', body: form });
+    pollAll();
+  }
+
+  pollAll();
+  setInterval(pollAll, 6000);
+</script>
+{% endblock %}

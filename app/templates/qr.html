@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}QR Check-In{% endblock %}
+{% block header_title %}📱 QR Self Check-In{% endblock %}
+
+{% block content %}
+<div class="qr-wrap">
+  <h2 class="qr-heading">ඔබගේම දුරකථනයෙන් ලියාපදිංචි වන්න</h2>
+  <p class="qr-sub">Scan with your phone camera to register yourself</p>
+  <div class="qr-box">
+    <img src="/qr-image" alt="QR code to self check-in" class="qr-image">
+  </div>
+  <p class="qr-url">{{ register_url }}</p>
+  <p class="qr-hint">
+    කැමරාව විවෘත කර මෙම කේතය දෙසට යොමු කරන්න — ලින්කුවක් දිස්වේවි, එය තට්ටු කරන්න.<br>
+    Open your camera app and point it at this code — a link will appear, tap it.
+  </p>
+</div>
+{% endblock %}
