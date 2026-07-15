@@ -139,7 +139,7 @@ def qr_image(request: Request):
 
 @app.get("/qr-feedback")
 def qr_feedback_page(request: Request):
-    feedback_url = str(request.base_url).rstrip("/") + "/feedback"
+    feedback_url = str(request.base_url).rstrip("/") + "/feedback?client=1"
     return templates.TemplateResponse(
         "qr_feedback.html", {"request": request, "active": "qr_feedback", "feedback_url": feedback_url},
     )
@@ -147,7 +147,7 @@ def qr_feedback_page(request: Request):
 
 @app.get("/qr-feedback-image")
 def qr_feedback_image(request: Request):
-    feedback_url = str(request.base_url).rstrip("/") + "/feedback"
+    feedback_url = str(request.base_url).rstrip("/") + "/feedback?client=1"
     img = qrcode.make(feedback_url, box_size=10, border=2)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -172,16 +172,17 @@ def display_view(request: Request):
 
 # ---------- Feedback ----------
 @app.get("/feedback")
-def feedback_form(request: Request):
+def feedback_form(request: Request, client: int = 0):
     return templates.TemplateResponse(
         "feedback.html",
-        {"request": request, "sections": db.SECTIONS, "active": "feedback", "submitted": False},
+        {"request": request, "sections": db.SECTIONS, "active": "feedback", "submitted": False, "is_client": bool(client)},
     )
 
 
 @app.post("/feedback")
 def feedback_submit(
     request: Request,
+    client: int = 0,
     name: str = Form(""),
     section: str = Form(...),
     reason: str = Form(...),
@@ -192,7 +193,7 @@ def feedback_submit(
     db.create_feedback(section=section, reason=reason, rating=rating, name=name)
     return templates.TemplateResponse(
         "feedback.html",
-        {"request": request, "sections": db.SECTIONS, "active": "feedback", "submitted": True},
+        {"request": request, "sections": db.SECTIONS, "active": "feedback", "submitted": True, "is_client": bool(client)},
     )
 
 
