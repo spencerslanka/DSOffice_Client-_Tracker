@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Feedback QR{% endblock %}
+{% block header_title %}🤳 Feedback QR Code{% endblock %}
+
+{% block content %}
+<div class="qr-wrap">
+  <h2 class="qr-heading">ඔබගේ ප්‍රතිචාරය ලබා දෙන්න</h2>
+  <p class="qr-sub">Scan with your phone camera to provide feedback</p>
+  <div class="qr-box">
+    <img src="/qr-feedback-image" alt="QR code to provide feedback" class="qr-image">
+  </div>
+  <p class="qr-url">{{ feedback_url }}</p>
+  <p class="qr-hint">
+    කැමරාව විවෘත කර මෙම කේතය දෙසට යොමු කරන්න — ලින්කුවක් දිස්වේවි, එය තට්ටු කරන්න.<br>
+    Open your camera app and point it at this code — a link will appear, tap it.
+  </p>
+</div>
+{% endblock %}
