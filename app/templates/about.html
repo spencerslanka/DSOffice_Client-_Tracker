@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}About — DS Office Client Tracker{% endblock %}
+{% block header_title %}ℹ️ About{% endblock %}
+
+{% block content %}
+<div class="about-page">
+
+  <!-- Hero Section -->
+  <div class="about-hero">
+    <div class="about-hero-icon">🏛️</div>
+    <h1 class="about-hero-title">DS Office — Client Tracker</h1>
+    <p class="about-hero-subtitle">Internal client status tracking system</p>
+  </div>
+
+  <!-- Description -->
+  <div class="about-card about-description">
+    <p>
+      A simple web application built for the front office of the
+      <strong>Pelmadulla Divisional Secretariat</strong>. It helps the front desk
+      register client visits, lets each section officer
+      (Land / Planning / Account / Administration / Registration / Field) track
+      their own queue, and shows a live public display of client progress in the
+      waiting area.
+    </p>
+  </div>
+
+  <!-- Info Grid -->
+  <div class="about-info-grid">
+    <div class="about-info-card">
+      <div class="about-info-icon">🏷️</div>
+      <div class="about-info-label">Version</div>
+      <div class="about-info-value">1.0.0</div>
+    </div>
+    <div class="about-info-card">
+      <div class="about-info-icon">📅</div>
+      <div class="about-info-label">Last Updated</div>
+      <div class="about-info-value">July 2026</div>
+    </div>
+    <div class="about-info-card">
+      <div class="about-info-icon">🏢</div>
+      <div class="about-info-label">Office</div>
+      <div class="about-info-value">Pelmadulla Divisional Secretariat</div>
+    </div>
+    <div class="about-info-card">
+      <div class="about-info-icon">🌐</div>
+      <div class="about-info-label">Environment</div>
+      <div class="about-info-value"><span class="about-env-badge">Production</span></div>
+    </div>
+  </div>
+
+  <!-- Built by Section -->
+  <div class="about-card about-builder">
+    <div class="about-builder-label">Built by</div>
+    <div class="about-builder-avatar">CN</div>
+    <div class="about-builder-name">C.N. Rathnayaka</div>
+    <a href="mailto:cnrnexu@gmail.com" class="about-builder-email">cnrnexu@gmail.com</a>
+  </div>
+
+</div>
+{% endblock %}

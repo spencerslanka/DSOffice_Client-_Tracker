@@ -16,14 +16,15 @@
         <div class="brand-text">DS Office<span>Client Tracker</span></div>
       </div>
       <nav class="sidebar-nav">
+        <a href="/" class="nav-btn nav-gray {% if active=='home' %}active{% endif %}">🏠 <span>Home</span></a>
         <a href="/entry" class="nav-btn nav-green {% if active=='entry' %}active{% endif %}">🖊️ <span>Front Desk</span></a>
         <a href="/qr" class="nav-btn nav-pink {% if active=='qr' or active=='register' %}active{% endif %}">📱 <span>QR Check-In</span></a>
         <a href="/section" class="nav-btn nav-orange {% if active=='section' %}active{% endif %}">🗂️ <span>Section Officer</span></a>
-        <a href="/display" class="nav-btn nav-blue {% if active=='display' %}active{% endif %}">📺 <span>Public Display</span></a>
-        <a href="/admin" class="nav-btn nav-purple {% if active=='admin' %}active{% endif %}">📊 <span>Admin Dashboard</span></a>
         <a href="/feedback" class="nav-btn nav-teal {% if active=='feedback' %}active{% endif %}">💬 <span>Feedback</span></a>
         <a href="/qr-feedback" class="nav-btn nav-teal {% if active=='qr_feedback' %}active{% endif %}">🤳 <span>Feedback QR</span></a>
-        <a href="/" class="nav-btn nav-gray {% if active=='home' %}active{% endif %}">🏠 <span>Home</span></a>
+        <a href="/display" class="nav-btn nav-blue {% if active=='display' %}active{% endif %}">📺 <span>Public Display</span></a>
+        <a href="/admin" class="nav-btn nav-purple {% if active=='admin' %}active{% endif %}">📊 <span>Admin Dashboard</span></a>
+        <a href="/about" class="nav-btn nav-about {% if active=='about' %}active{% endif %}">ℹ️ <span>About</span></a>
       </nav>
     </aside>
     {% endblock %}

@@ -2,6 +2,8 @@
 {% block title %}සේවා ප්‍රතිචාර{% endblock %}
 {% block header_title %}💬 සේවා ප්‍රතිචාර පත්‍රිකාව{% endblock %}
 
+{% block body_class %}{% if is_client %}client-feedback-page{% endif %}{% endblock %}
+
 {% block sidebar %}
   {% if not is_client %}
     {{ super() }}
@@ -9,7 +11,18 @@
 {% endblock %}
 
 {% block topbar %}
-  {% if not is_client %}
+  {% if is_client %}
+    <header class="client-feedback-header">
+      <div class="client-feedback-title">💬 සේවා ප්‍රතිචාර පත්‍රිකාව</div>
+      <button type="button" class="client-close-btn" onclick="window.close(); setTimeout(function(){ document.getElementById('closeMsg').style.display='block'; }, 300);" title="Close / වසන්න">
+        ✕
+      </button>
+    </header>
+    <div id="closeMsg" class="client-close-msg" style="display:none;">
+      ඔබට මෙම ටැබය අතින් වසා දමන්න.<br>
+      <span class="cell-sub">You can manually close this tab now.</span>
+    </div>
+  {% else %}
     {{ super() }}
   {% endif %}
 {% endblock %}
@@ -20,7 +33,18 @@
   ඔබගේ ප්‍රතිචාරය සාර්ථකව ලැබුණි. ස්තුතියි!
   <div style="font-size:0.9rem; font-weight:400; margin-top:8px; opacity:0.9;">Thank you — your feedback has been recorded.</div>
 </div>
-<a href="/feedback{% if is_client %}?client=1{% endif %}" class="btn" style="text-decoration:none; display:inline-block;">➕ තවත් ප්‍රතිචාරයක්</a>
+{% if is_client %}
+<div class="client-submit-actions">
+  <a href="/feedback?client=1" class="btn" style="text-decoration:none; display:inline-block;">➕ තවත් ප්‍රතිචාරයක්</a>
+  <button type="button" class="btn client-close-action-btn" onclick="window.close(); setTimeout(function(){ document.getElementById('closeMsg2').style.display='block'; }, 300);">✕ වසන්න / Close</button>
+</div>
+<div id="closeMsg2" class="client-close-msg" style="display:none;">
+  ඔබට මෙම ටැබය අතින් වසා දමන්න.<br>
+  <span class="cell-sub">You can manually close this tab now.</span>
+</div>
+{% else %}
+<a href="/feedback" class="btn" style="text-decoration:none; display:inline-block;">➕ තවත් ප්‍රතිචාරයක්</a>
+{% endif %}
 {% else %}
 <form class="card reg-form" method="post" action="/feedback{% if is_client %}?client=1{% endif %}">
 
