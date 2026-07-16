@@ -7,7 +7,7 @@ from sqlalchemy import (
     select, insert, update, func,
 )
 
-SECTIONS = [
+DEFAULT_SECTIONS = [
     "ආයතන අංශය",
     "ඉඩම් අංශය",
     "පුද්ගලයින් ලියාපදංචි කිරීමේ අංශය ( හැදුනුම්පත්)",
@@ -84,10 +84,53 @@ feedback_table = Table(
     Column("created_at", String(40), nullable=False),
 )
 
+config_table = Table(
+    "config", metadata,
+    Column("key", String(50), primary_key=True),
+    Column("value", Text, nullable=False),
+)
+
 
 def init_db():
     metadata.create_all(engine)
+    with engine.begin() as conn:
+        row = conn.execute(select(config_table).where(config_table.c.key == "sections")).fetchone()
+        if not row:
+            conn.execute(insert(config_table).values(key="sections", value=json.dumps(DEFAULT_SECTIONS)))
 
+def get_sections():
+    with engine.connect() as conn:
+        row = conn.execute(select(config_table).where(config_table.c.key == "sections")).fetchone()
+        if row:
+            return json.loads(row.value)
+    return DEFAULT_SECTIONS
+
+def save_sections(sections_list):
+    with engine.begin() as conn:
+        row = conn.execute(select(config_table).where(config_table.c.key == "sections")).fetchone()
+        if row:
+            conn.execute(update(config_table).where(config_table.c.key == "sections").values(value=json.dumps(sections_list)))
+        else:
+            conn.execute(insert(config_table).values(key="sections", value=json.dumps(sections_list)))
+
+
+class _SectionsProxy(list):
+    """Live proxy so callers can use db.SECTIONS and always get the
+    current value from the database without restarting the server."""
+    def _refresh(self):
+        data = get_sections()
+        list.__init__(self, data)
+    def __iter__(self):
+        self._refresh(); return super().__iter__()
+    def __len__(self):
+        self._refresh(); return super().__len__()
+    def __getitem__(self, idx):
+        self._refresh(); return super().__getitem__(idx)
+    def __contains__(self, item):
+        self._refresh(); return super().__contains__(item)
+
+
+SECTIONS: list = _SectionsProxy()
 
 def log_event(client_id, note):
     now = datetime.now().isoformat()
@@ -230,12 +273,15 @@ def get_stats():
         if c["overall_status"] == "completed" and (c["completed_at"] or "").startswith(today_prefix)
     )
 
-    section_needed = {s: 0 for s in SECTIONS}
-    section_pending = {s: 0 for s in SECTIONS}
-    section_in_progress = {s: 0 for s in SECTIONS}
-    section_done = {s: 0 for s in SECTIONS}
+    current_sections = get_sections()
+    section_needed = {s: 0 for s in current_sections}
+    section_pending = {s: 0 for s in current_sections}
+    section_in_progress = {s: 0 for s in current_sections}
+    section_done = {s: 0 for s in current_sections}
     for c in clients:
         for s in c["sections"]:
+            if s not in current_sections:
+                continue
             section_needed[s] += 1
             st = c["section_status"][s]
             if st == "pending":
@@ -252,7 +298,7 @@ def get_stats():
         "completed": completed,
         "today_count": today_count,
         "today_completed": today_completed,
-        "sections": SECTIONS,
+        "sections": current_sections,
         "section_needed": section_needed,
         "section_pending": section_pending,
         "section_in_progress": section_in_progress,
@@ -287,7 +333,8 @@ def get_feedback_stats():
     good = sum(1 for f in items if f["rating"] == "good")
     average = sum(1 for f in items if f["rating"] == "average")
     poor = sum(1 for f in items if f["rating"] == "poor")
-    by_section = {s: {"good": 0, "average": 0, "poor": 0} for s in SECTIONS}
+    current_sections = get_sections()
+    by_section = {s: {"good": 0, "average": 0, "poor": 0} for s in current_sections}
     for f in items:
         if f["section"] in by_section:
             by_section[f["section"]][f["rating"]] += 1

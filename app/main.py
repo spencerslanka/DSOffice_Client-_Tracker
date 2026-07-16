@@ -7,6 +7,7 @@ import io
 import json
 import os
 import qrcode
+from datetime import datetime
 
 from . import database as db
 
@@ -239,6 +240,35 @@ def staff_redirect():
     return RedirectResponse(url="/admin")
 
 
+# ---------- Sections management API ----------
+@app.get("/api/sections")
+def api_get_sections(request: Request):
+    if not is_logged_in(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    return JSONResponse(db.get_sections())
+
+
+@app.post("/api/sections")
+async def api_save_sections(request: Request):
+    if not is_logged_in(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    body = await request.json()
+    sections = body.get("sections", [])
+    if not isinstance(sections, list):
+        return JSONResponse({"error": "sections must be a list"}, status_code=400)
+    seen = set()
+    cleaned = []
+    for s in sections:
+        s = str(s).strip()
+        if s and s not in seen:
+            seen.add(s)
+            cleaned.append(s)
+    if not cleaned:
+        return JSONResponse({"error": "sections list cannot be empty"}, status_code=400)
+    db.save_sections(cleaned)
+    return JSONResponse({"ok": True, "sections": cleaned})
+
+
 # ---------- JSON API ----------
 @app.get("/api/clients")
 def api_clients(active: bool = False, section: str = None):
@@ -270,3 +300,126 @@ def api_update_section(client_id: int, section: str, status: str = Form(...)):
     if client is None:
         return JSONResponse({"error": "not found"}, status_code=404)
     return JSONResponse(client)
+
+
+# ---------- About page ----------
+@app.get("/about")
+def about_page(request: Request):
+    return templates.TemplateResponse("about.html", {"request": request, "active": "about"})
+
+
+# ---------- Excel download endpoints ----------
+@app.get("/api/download/clients")
+def download_clients_excel(request: Request):
+    if not is_logged_in(request):
+        return RedirectResponse(url="/admin/login?next=/admin")
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    clients = db.get_all_clients(active_only=False)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Client Registration"
+
+    # Header styling
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="0F4C47", end_color="0F4C47", fill_type="solid")
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+
+    headers = ["Token", "Name", "Phone", "NIC", "Purpose", "Sections", "Status", "Progress %", "Registered At", "Completed At"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+
+    for i, c in enumerate(clients, 2):
+        sections_str = ", ".join(c["sections"])
+        status_str = ", ".join(f"{s}: {c['section_status'].get(s, 'N/A')}" for s in c["sections"])
+        row_data = [
+            c["token"], c["name"], c.get("phone", ""), c.get("nic", ""),
+            c["purpose"], sections_str, c["overall_status"],
+            c["progress"], c["created_at"][:19], c.get("completed_at", "") or "",
+        ]
+        for col, val in enumerate(row_data, 1):
+            cell = ws.cell(row=i, column=col, value=val)
+            cell.border = thin_border
+
+    # Auto-fit column widths (approximate)
+    for col_idx in range(1, len(headers) + 1):
+        max_len = len(str(headers[col_idx - 1]))
+        for row_idx in range(2, len(clients) + 2):
+            val = ws.cell(row=row_idx, column=col_idx).value
+            if val:
+                max_len = max(max_len, min(len(str(val)), 40))
+        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = max_len + 3
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"clients_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.get("/api/download/feedback")
+def download_feedback_excel(request: Request):
+    if not is_logged_in(request):
+        return RedirectResponse(url="/admin/login?next=/admin")
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    items = db.get_all_feedback()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Feedback"
+
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="1F7A4F", end_color="1F7A4F", fill_type="solid")
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+
+    headers = ["Date", "Name", "Section", "Reason", "Rating"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+
+    rating_label = {"good": "Good \U0001f60a", "average": "Average \U0001f610", "poor": "Poor \u2639\ufe0f"}
+    for i, f in enumerate(items, 2):
+        row_data = [
+            f["created_at"][:10], f.get("name", "") or "—",
+            f["section"], f["reason"], rating_label.get(f["rating"], f["rating"]),
+        ]
+        for col, val in enumerate(row_data, 1):
+            cell = ws.cell(row=i, column=col, value=val)
+            cell.border = thin_border
+
+    for col_idx in range(1, len(headers) + 1):
+        max_len = len(str(headers[col_idx - 1]))
+        for row_idx in range(2, len(items) + 2):
+            val = ws.cell(row=row_idx, column=col_idx).value
+            if val:
+                max_len = max(max_len, min(len(str(val)), 40))
+        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = max_len + 3
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"feedback_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
